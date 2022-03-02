@@ -1,2 +1,2 @@
 # CDOT
-### It's tested on social battery dataset
+### It's tested on SOC battery dataset
