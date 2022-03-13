@@ -13,6 +13,7 @@ from sklearn import ensemble
 from sklearn.metrics import r2_score
 from sklearn import neighbors
 import os
+import pdb
 
 # [10 15 25 20 30 35 40 45 50]
 
@@ -20,10 +21,12 @@ method = 'dot'
 dir = '/Users/liuhanbing/Desktop/code'
 lambd = 0.01
 max_epoch = 10
-step_size = 0.1
+step_size = 0.001
 mut = 50
-cnt = 9
+cnt = 4
 n0 = 0
+sort = np.random.choice(67, 20, False)
+
 
 if method == 'cdot':
     fo = open(os.path.join(dir, 'cdot/seq-log.txt'), "w")
@@ -33,33 +36,38 @@ else:
 for i in range(cnt):
 
     # load data
-    path2 = dir + '/out_SOC_005-075_excel/out-SOC-0{}.xlsx'.format(5*(i+2))
+    path2 = dir + '/out_SOC_005-075_excel/out-SOC-0{}.xlsx'.format(5*(i+7))
     soc10 = pd.read_excel(path2, engine='openpyxl').values
     label = pd.read_excel(os.path.join(dir, 'cdot/source.xlsx'), engine='openpyxl').values
 
     soc10_xt = soc10[:, 2 : 23] # (67, 21)
     soc10_yt = soc10[:, 1] # (67, )
 
+    # soc10_xt = soc10_xt[sort]
+    # soc10_yt = soc10_yt[sort]
+
     if method == 'cdot':
         print("This is the {}th sequential transport".format(i+1))
         if i == 0:
-            path1 = dir + '/out_SOC_005-075_excel/out-SOC-00{}.xlsx'.format(5*(i+1))
+            path1 = dir + '/out_SOC_005-075_excel/out-SOC-0{}.xlsx'.format(5*(i+6))
             soc5 = pd.read_excel(path1, engine='openpyxl').values
 
             soc5_xs = soc5[:, 2 : 23] # (67, 21)
             soc5_ys = soc5[:, 1] # (67, )
         
         else:
-            path1 = dir + '/out_SOC_005-075_excel/out-SOC-0{}.xlsx'.format(5*(i+1))
+            path1 = dir + '/out_SOC_005-075_excel/out-SOC-0{}.xlsx'.format(5*(i+6))
             soc5 = pd.read_excel(path1, engine='openpyxl').values
 
             soc5_xs = soc5[:, 2 : 23] # (67, 21)
             soc5_ys = label[:, 1]
+
+            # soc5_xs = soc5_xs[sort]
     
     else:
         print("This is the {}th transport".format(i+1))
 
-        path1 = dir + '/out_SOC_005-075_excel/out-SOC-005.xlsx'
+        path1 = dir + '/out_SOC_005-075_excel/out-SOC-030.xlsx'
         soc5 = pd.read_excel(path1, engine='openpyxl').values
 
         soc5_xs = soc5[:, 2 : 23] # (67, 21)
@@ -73,26 +81,31 @@ for i in range(cnt):
     n2 = soc10_xt.shape[0]
     a, b = np.ones((n1,)) / n1, np.ones((n2,)) / n2  # uniform distribution on samples
 
-    if i == 0:
 
-        gamma = ot.sinkhorn(a, b, M, lambd) # (67, 67)
+    if method == 'cdot':
+        if i == 0:
 
-    else:
-        
-        # transport matrix
-        gamma0 = np.random.rand(n1, n2)
+            gamma = ot.sinkhorn(a, b, M, lambd) # (67, 67)
 
-        def derivation(gamma):
-            tmp1 = 2 * (n1 ** 2) * soc5_xs @ soc5_xs.T @ gamma
+        else:
             
-            tmp2 = (n0 * n1) * soc5_xs @ soc0_x.T @ gamma_t0
-            return tmp1 - 2 * tmp2
+            # transport matrix
+            gamma0 = np.random.rand(n1, n2)
 
-        gamma = gamma0
-        for i in range(max_epoch):
-            c = step_size * M + step_size * mut * derivation(gamma) - np.log(gamma)
-            c /= c.max()
-            gamma = ot.sinkhorn(a, b, c, 1+step_size*lambd)
+            def derivation(gamma):
+                tmp1 = 2 * (n1 ** 2) * soc5_xs @ soc5_xs.T @ gamma
+                
+                tmp2 = (n0 * n1) * soc5_xs @ soc0_x.T @ gamma_t0
+                return tmp1 - 2 * tmp2
+
+            gamma = gamma0
+            for i in range(max_epoch):
+                c = step_size * M + step_size * mut * derivation(gamma) - np.log(gamma)
+                c /= c.max()
+                gamma = ot.sinkhorn(a, b, c, 1+step_size*lambd)
+    
+    else:
+        gamma = ot.sinkhorn(a, b, M, lambd)
         
     xt = n1 * gamma.dot(soc10_xt)
 
@@ -114,7 +127,7 @@ for i in range(cnt):
     def try_different_method(model):
         model.fit(xt, soc5_ys)
         # score = model.score(soc10_xt, soc10_yt)
-        result = model.predict(soc10_xt)
+        result = model.predict(xt)
         score = r2_score(result, soc10_yt)
         loss = np.mean(np.square(result - soc10_yt))
         # print("score ", score)
@@ -156,8 +169,8 @@ pl.title('OT matrix sinkhorn')
 y = np.zeros((67,1))
 y[:,0] = soc10_yt[:]
 plt.figure()
-plt.plot(np.arange(67), soc10_yt,'o--',label='true value')
-plt.plot(np.arange(67), bestresult,'o--',label='predict value')
+plt.plot(soc10_yt,'o--',label='true value')
+plt.plot(bestresult,'o--',label='predict value')
 
 plt.grid()
 plt.title('score: %f'%score)
