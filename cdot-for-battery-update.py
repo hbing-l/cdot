@@ -17,14 +17,13 @@ import pdb
 
 # [10 15 25 20 30 35 40 45 50]
 
-method = 'dot'
+method = 'cdot'
 dir = '/Users/liuhanbing/Desktop/code'
 lambd = 0.01
 max_epoch = 10
 step_size = 0.001
 mut = 50
 cnt = 4
-n0 = 0
 sort = np.random.choice(67, 20, False)
 
 
@@ -36,7 +35,7 @@ else:
 for i in range(cnt):
 
     # load data
-    path2 = dir + '/out_SOC_005-075_excel/out-SOC-0{}.xlsx'.format(5*(i+7))
+    path2 = dir + '/out_SOC_005-075_excel/out-SOC-0{}.xlsx'.format(5*(i+2))
     soc10 = pd.read_excel(path2, engine='openpyxl').values
     label = pd.read_excel(os.path.join(dir, 'cdot/source.xlsx'), engine='openpyxl').values
 
@@ -49,14 +48,14 @@ for i in range(cnt):
     if method == 'cdot':
         print("This is the {}th sequential transport".format(i+1))
         if i == 0:
-            path1 = dir + '/out_SOC_005-075_excel/out-SOC-0{}.xlsx'.format(5*(i+6))
+            path1 = dir + '/out_SOC_005-075_excel/out-SOC-00{}.xlsx'.format(5*(i+1))
             soc5 = pd.read_excel(path1, engine='openpyxl').values
 
             soc5_xs = soc5[:, 2 : 23] # (67, 21)
             soc5_ys = soc5[:, 1] # (67, )
         
         else:
-            path1 = dir + '/out_SOC_005-075_excel/out-SOC-0{}.xlsx'.format(5*(i+6))
+            path1 = dir + '/out_SOC_005-075_excel/out-SOC-0{}.xlsx'.format(5*(i+1))
             soc5 = pd.read_excel(path1, engine='openpyxl').values
 
             soc5_xs = soc5[:, 2 : 23] # (67, 21)
@@ -67,7 +66,7 @@ for i in range(cnt):
     else:
         print("This is the {}th transport".format(i+1))
 
-        path1 = dir + '/out_SOC_005-075_excel/out-SOC-030.xlsx'
+        path1 = dir + '/out_SOC_005-075_excel/out-SOC-005.xlsx'
         soc5 = pd.read_excel(path1, engine='openpyxl').values
 
         soc5_xs = soc5[:, 2 : 23] # (67, 21)
@@ -93,9 +92,9 @@ for i in range(cnt):
             gamma0 = np.random.rand(n1, n2)
 
             def derivation(gamma):
-                tmp1 = 2 * (n1 ** 2) * soc5_xs @ soc5_xs.T @ gamma
+                tmp1 = 2 * (n2 ** 2) * gamma.T @ soc5_xs @ soc5_xs.T 
                 
-                tmp2 = (n0 * n1) * soc5_xs @ soc0_x.T @ gamma_t0
+                tmp2 = (n1 * n2) * soc5_xs @ soc0_x.T @ gamma_t0
                 return tmp1 - 2 * tmp2
 
             gamma = gamma0
@@ -111,7 +110,7 @@ for i in range(cnt):
 
     soc0_x = soc5_xs
     gamma_t0 = gamma
-    n0 = n1
+    # n0 = n1
 
     # pl.figure(5)
 
@@ -127,7 +126,7 @@ for i in range(cnt):
     def try_different_method(model):
         model.fit(xt, soc5_ys)
         # score = model.score(soc10_xt, soc10_yt)
-        result = model.predict(xt)
+        result = model.predict(soc10_xt)
         score = r2_score(result, soc10_yt)
         loss = np.mean(np.square(result - soc10_yt))
         # print("score ", score)
